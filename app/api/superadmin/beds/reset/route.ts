@@ -1,20 +1,25 @@
+import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function POST(req: NextRequest) {
-  const { hospital_id, bed_type, total } = await req.json()
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
-  if (!hospital_id || !bed_type) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  const { hospital_id, bed_type } = await req.json()
+
+  if (!hospital_id) {
+    return NextResponse.json({ error: 'hospital_id required' }, { status: 400 })
   }
 
-  const { error } = await supabaseAdmin
-    .from('bed_inventory')
-    .update({ available_beds: total })
-    .eq('hospital_id', hospital_id)
-    .eq('bed_type', bed_type)
+  const query = supabase.rpc('reset_beds', {
+    p_hospital_id: hospital_id,
+    p_bed_type: bed_type ?? null,
+  })
+
+  const { data, error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ success: true, data })
 }
